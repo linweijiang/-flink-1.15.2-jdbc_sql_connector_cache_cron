@@ -202,6 +202,15 @@ public abstract class AbstractDialect implements JdbcDialect {
                 + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
     }
 
+    @Override
+    public String getSelectFromStatementWithNoWhere(String tableName, String[] selectFields) {
+        String selectExpressions =
+                Arrays.stream(selectFields)
+                        .map(this::quoteIdentifier)
+                        .collect(Collectors.joining(", "));
+        return "SELECT " + selectExpressions + " FROM " + quoteIdentifier(tableName);
+    }
+
     /**
      * A simple {@code SELECT} statement that checks for the existence of a single row.
      *

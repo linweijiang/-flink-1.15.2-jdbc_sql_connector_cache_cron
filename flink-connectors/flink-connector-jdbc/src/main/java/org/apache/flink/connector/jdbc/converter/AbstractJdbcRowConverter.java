@@ -81,6 +81,17 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
     }
 
     @Override
+    public RowData toInternal(String[] keys, ResultSet resultSet) throws SQLException {
+        GenericRowData genericRowData = new GenericRowData(keys.length);
+        for (int pos = 0; pos < keys.length; pos++) {
+            int index = rowType.getFieldIndex(keys[pos]);
+            genericRowData.setField(
+                    pos, toInternalConverters[index].deserialize(resultSet.getObject(keys[pos])));
+        }
+        return genericRowData;
+    }
+
+    @Override
     public FieldNamedPreparedStatement toExternal(
             RowData rowData, FieldNamedPreparedStatement statement) throws SQLException {
         for (int index = 0; index < rowData.getArity(); index++) {

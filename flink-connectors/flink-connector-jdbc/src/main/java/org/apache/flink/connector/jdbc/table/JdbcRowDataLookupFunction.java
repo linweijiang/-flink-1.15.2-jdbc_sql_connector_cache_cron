@@ -69,6 +69,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private final long cacheExpireMs;
     private final int maxRetryTimes;
     private final boolean cacheMissingKey;
+    private final boolean cacheAll;
     private final JdbcDialect jdbcDialect;
     private final JdbcRowConverter jdbcRowConverter;
     private final JdbcRowConverter lookupKeyRowConverter;
@@ -106,9 +107,15 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         this.cacheExpireMs = lookupOptions.getCacheExpireMs();
         this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
         this.cacheMissingKey = lookupOptions.getCacheMissingKey();
+        this.cacheAll = lookupOptions.isCacheAll();
         this.query =
-                options.getDialect()
-                        .getSelectFromStatement(options.getTableName(), fieldNames, keyNames);
+                lookupOptions.isCacheAll()
+                        ? options.getDialect()
+                                .getSelectFromStatementWithNoWhere(
+                                        options.getTableName(), fieldNames)
+                        : options.getDialect()
+                                .getSelectFromStatement(
+                                        options.getTableName(), fieldNames, keyNames);
         String dbURL = options.getDbURL();
         this.jdbcDialect = JdbcDialectLoader.load(dbURL);
         this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
@@ -124,13 +131,41 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     public void open(FunctionContext context) throws Exception {
         try {
             establishConnectionAndStatement();
-            this.cache =
-                    cacheMaxSize == -1 || cacheExpireMs == -1
-                            ? null
-                            : CacheBuilder.newBuilder()
-                                    .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                                    .maximumSize(cacheMaxSize)
-                                    .build();
+            if (cacheAll) {
+                LOG.info("look up cache all mode start to init all data");
+                this.cache =
+                        CacheBuilder.newBuilder()
+                                .maximumSize(cacheMaxSize == -1 ? Integer.MAX_VALUE : cacheMaxSize)
+                                .build();
+                // 初始化数据
+                ResultSet resultSet = statement.executeQuery();
+                while (resultSet.next()) {
+                    // 生成对应的key
+                    RowData key = jdbcRowConverter.toInternal(keyNames, resultSet);
+                    // 获取对应的数据
+                    RowData row = jdbcRowConverter.toInternal(resultSet);
+
+                    // 保存到cache
+                    List<RowData> dataList = cache.getIfPresent(key);
+                    if (dataList == null) {
+                        dataList = new ArrayList<>();
+                    }
+                    dataList.add(row);
+                    ((ArrayList<?>) dataList).trimToSize();
+                    this.cache.put(key, dataList);
+                }
+                // TODO 启动定时任务
+                LOG.info("look up cache all mode finish to init all data");
+
+            } else {
+                this.cache =
+                        cacheMaxSize == -1 || cacheExpireMs == -1
+                                ? null
+                                : CacheBuilder.newBuilder()
+                                        .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
+                                        .maximumSize(cacheMaxSize)
+                                        .build();
+            }
         } catch (SQLException sqe) {
             throw new IllegalArgumentException("open() failed.", sqe);
         } catch (ClassNotFoundException cnfe) {
@@ -144,6 +179,24 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
      * @param keys lookup keys
      */
     public void eval(Object... keys) {
+        if (cacheAll) {
+            lookupWithAll(keys);
+        } else {
+            lookup(keys);
+        }
+    }
+
+    public void lookupWithAll(Object... keys) {
+        RowData keyRow = GenericRowData.of(keys);
+        List<RowData> rows = cache.getIfPresent(keyRow);
+        if (rows != null) {
+            for (RowData row : rows) {
+                collect(row);
+            }
+        }
+    }
+
+    public void lookup(Object... keys) {
         RowData keyRow = GenericRowData.of(keys);
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);

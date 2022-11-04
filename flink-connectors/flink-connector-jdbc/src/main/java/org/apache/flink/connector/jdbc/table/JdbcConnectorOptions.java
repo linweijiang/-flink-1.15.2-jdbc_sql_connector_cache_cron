@@ -143,6 +143,13 @@ public class JdbcConnectorOptions {
                     .defaultValue(true)
                     .withDescription("Flag to cache missing key. true by default");
 
+    public static final ConfigOption<Boolean> LOOKUP_CACHE_ALL =
+            ConfigOptions.key("lookup.cache.all")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Flag to cache all record, and init all record. false by default");
+
     // write config options
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")

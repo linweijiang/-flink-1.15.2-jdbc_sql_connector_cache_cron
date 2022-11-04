@@ -31,12 +31,19 @@ public class JdbcLookupOptions implements Serializable {
     private final int maxRetryTimes;
     private final boolean cacheMissingKey;
 
+    private final boolean cacheAll;
+
     public JdbcLookupOptions(
-            long cacheMaxSize, long cacheExpireMs, int maxRetryTimes, boolean cacheMissingKey) {
+            long cacheMaxSize,
+            long cacheExpireMs,
+            int maxRetryTimes,
+            boolean cacheMissingKey,
+            boolean cacheAll) {
         this.cacheMaxSize = cacheMaxSize;
         this.cacheExpireMs = cacheExpireMs;
         this.maxRetryTimes = maxRetryTimes;
         this.cacheMissingKey = cacheMissingKey;
+        this.cacheAll = cacheAll;
     }
 
     public long getCacheMaxSize() {
@@ -55,6 +62,10 @@ public class JdbcLookupOptions implements Serializable {
         return cacheMissingKey;
     }
 
+    public boolean isCacheAll() {
+        return cacheAll;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -66,7 +77,8 @@ public class JdbcLookupOptions implements Serializable {
             return Objects.equals(cacheMaxSize, options.cacheMaxSize)
                     && Objects.equals(cacheExpireMs, options.cacheExpireMs)
                     && Objects.equals(maxRetryTimes, options.maxRetryTimes)
-                    && Objects.equals(cacheMissingKey, options.cacheMissingKey);
+                    && Objects.equals(cacheMissingKey, options.cacheMissingKey)
+                    && Objects.equals(cacheAll, options.cacheAll);
         } else {
             return false;
         }
@@ -78,6 +90,8 @@ public class JdbcLookupOptions implements Serializable {
         private long cacheExpireMs = -1L;
         private int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
         private boolean cacheMissingKey = true;
+
+        private boolean cacheAll = false;
 
         /** optional, lookup cache max size, over this value, the old data will be eliminated. */
         public Builder setCacheMaxSize(long cacheMaxSize) {
@@ -103,9 +117,14 @@ public class JdbcLookupOptions implements Serializable {
             return this;
         }
 
+        public Builder setCacheAll(boolean cacheAll) {
+            this.cacheAll = cacheAll;
+            return this;
+        }
+
         public JdbcLookupOptions build() {
             return new JdbcLookupOptions(
-                    cacheMaxSize, cacheExpireMs, maxRetryTimes, cacheMissingKey);
+                    cacheMaxSize, cacheExpireMs, maxRetryTimes, cacheMissingKey, cacheAll);
         }
     }
 }

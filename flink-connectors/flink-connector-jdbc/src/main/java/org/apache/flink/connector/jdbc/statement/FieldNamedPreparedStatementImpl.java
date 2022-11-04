@@ -189,19 +189,25 @@ public class FieldNamedPreparedStatementImpl implements FieldNamedPreparedStatem
 
         HashMap<String, List<Integer>> parameterMap = new HashMap<>();
         String parsedSQL = parseNamedStatement(sql, parameterMap);
-        // currently, the statements must contain all the field parameters
-        checkArgument(parameterMap.size() == fieldNames.length);
-        int[][] indexMapping = new int[fieldNames.length][];
-        for (int i = 0; i < fieldNames.length; i++) {
-            String fieldName = fieldNames[i];
-            checkArgument(
-                    parameterMap.containsKey(fieldName),
-                    fieldName + " doesn't exist in the parameters of SQL statement: " + sql);
-            indexMapping[i] = parameterMap.get(fieldName).stream().mapToInt(v -> v).toArray();
-        }
 
-        return new FieldNamedPreparedStatementImpl(
-                connection.prepareStatement(parsedSQL), indexMapping);
+        if (parsedSQL.contains("?")) {
+            // currently, the statements must contain all the field parameters
+            checkArgument(parameterMap.size() == fieldNames.length);
+            int[][] indexMapping = new int[fieldNames.length][];
+            for (int i = 0; i < fieldNames.length; i++) {
+                String fieldName = fieldNames[i];
+                checkArgument(
+                        parameterMap.containsKey(fieldName),
+                        fieldName + " doesn't exist in the parameters of SQL statement: " + sql);
+                indexMapping[i] = parameterMap.get(fieldName).stream().mapToInt(v -> v).toArray();
+            }
+
+            return new FieldNamedPreparedStatementImpl(
+                    connection.prepareStatement(parsedSQL), indexMapping);
+        } else {
+            return new FieldNamedPreparedStatementImpl(
+                    connection.prepareStatement(parsedSQL), new int[fieldNames.length][]);
+        }
     }
 
     /**

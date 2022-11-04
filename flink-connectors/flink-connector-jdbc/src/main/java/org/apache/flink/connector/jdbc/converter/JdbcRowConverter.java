@@ -40,6 +40,8 @@ public interface JdbcRowConverter extends Serializable {
      */
     RowData toInternal(ResultSet resultSet) throws SQLException;
 
+    RowData toInternal(String[] keys, ResultSet resultSet) throws SQLException;
+
     /**
      * Convert data retrieved from Flink internal RowData to JDBC Object.
      *

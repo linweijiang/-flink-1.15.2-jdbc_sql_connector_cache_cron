@@ -142,4 +142,6 @@ public interface JdbcDialect extends Serializable {
      */
     String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields);
+
+    String getSelectFromStatementWithNoWhere(String tableName, String[] selectFields);
 }
