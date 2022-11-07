@@ -47,6 +47,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.DRIVER;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_ALL;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_ALL_CRON;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_MISSING_KEY;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.LOOKUP_CACHE_TTL;
@@ -156,7 +157,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 readableConfig.get(LOOKUP_CACHE_TTL).toMillis(),
                 readableConfig.get(LOOKUP_MAX_RETRIES),
                 readableConfig.get(LOOKUP_CACHE_MISSING_KEY),
-                readableConfig.get(LOOKUP_CACHE_ALL));
+                readableConfig.get(LOOKUP_CACHE_ALL),
+                readableConfig.get(LOOKUP_CACHE_ALL_CRON));
     }
 
     private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
@@ -213,6 +215,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         optionalOptions.add(LOOKUP_MAX_RETRIES);
         optionalOptions.add(LOOKUP_CACHE_MISSING_KEY);
         optionalOptions.add(LOOKUP_CACHE_ALL);
+        optionalOptions.add(LOOKUP_CACHE_ALL_CRON);
         optionalOptions.add(SINK_BUFFER_FLUSH_MAX_ROWS);
         optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
         optionalOptions.add(SINK_MAX_RETRIES);
@@ -239,7 +242,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                         LOOKUP_CACHE_TTL,
                         LOOKUP_MAX_RETRIES,
                         LOOKUP_CACHE_MISSING_KEY,
-                        LOOKUP_CACHE_ALL)
+                        LOOKUP_CACHE_ALL,
+                        LOOKUP_CACHE_ALL_CRON)
                 .collect(Collectors.toSet());
     }
 

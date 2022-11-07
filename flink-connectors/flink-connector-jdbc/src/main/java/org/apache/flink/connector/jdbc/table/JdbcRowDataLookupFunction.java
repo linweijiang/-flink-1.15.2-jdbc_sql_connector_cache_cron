@@ -28,6 +28,7 @@ import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionP
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
+import org.apache.flink.connector.jdbc.utils.CronUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -70,6 +71,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private final int maxRetryTimes;
     private final boolean cacheMissingKey;
     private final boolean cacheAll;
+    private final String cacheAllCron;
     private final JdbcDialect jdbcDialect;
     private final JdbcRowConverter jdbcRowConverter;
     private final JdbcRowConverter lookupKeyRowConverter;
@@ -108,6 +110,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
         this.cacheMissingKey = lookupOptions.getCacheMissingKey();
         this.cacheAll = lookupOptions.isCacheAll();
+        this.cacheAllCron = lookupOptions.getCacheAllCron();
         this.query =
                 lookupOptions.isCacheAll()
                         ? options.getDialect()
@@ -132,31 +135,8 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         try {
             establishConnectionAndStatement();
             if (cacheAll) {
-                LOG.info("look up cache all mode start to init all data");
-                this.cache =
-                        CacheBuilder.newBuilder()
-                                .maximumSize(cacheMaxSize == -1 ? Integer.MAX_VALUE : cacheMaxSize)
-                                .build();
-                // 初始化数据
-                ResultSet resultSet = statement.executeQuery();
-                while (resultSet.next()) {
-                    // 生成对应的key
-                    RowData key = jdbcRowConverter.toInternal(keyNames, resultSet);
-                    // 获取对应的数据
-                    RowData row = jdbcRowConverter.toInternal(resultSet);
-
-                    // 保存到cache
-                    List<RowData> dataList = cache.getIfPresent(key);
-                    if (dataList == null) {
-                        dataList = new ArrayList<>();
-                    }
-                    dataList.add(row);
-                    ((ArrayList<?>) dataList).trimToSize();
-                    this.cache.put(key, dataList);
-                }
-                // TODO 启动定时任务
-                LOG.info("look up cache all mode finish to init all data");
-
+                initCacheAll();
+                CronUtils.runCron(this::initCacheAll, cacheAllCron);
             } else {
                 this.cache =
                         cacheMaxSize == -1 || cacheExpireMs == -1
@@ -171,6 +151,41 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         } catch (ClassNotFoundException cnfe) {
             throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
         }
+    }
+
+    private void initCacheAll() {
+        LOG.info("look up cache all mode start to init all data");
+        Cache<RowData, List<RowData>> initCache =
+                CacheBuilder.newBuilder()
+                        .maximumSize(cacheMaxSize == -1 ? Integer.MAX_VALUE : cacheMaxSize)
+                        .build();
+        try {
+            // 初始化数据
+            ResultSet resultSet = statement.executeQuery();
+            long line = 0L;
+            while (resultSet.next()) {
+                // 生成对应的key
+                RowData key = jdbcRowConverter.toInternal(keyNames, resultSet);
+                // 获取对应的数据
+                RowData row = jdbcRowConverter.toInternal(resultSet);
+                // 保存到cache
+                List<RowData> dataList = initCache.getIfPresent(key);
+                if (dataList == null) {
+                    dataList = new ArrayList<>();
+                }
+                dataList.add(row);
+                ((ArrayList<?>) dataList).trimToSize();
+                initCache.put(key, dataList);
+                line++;
+            }
+            LOG.info("init all cache size is: {} line", line);
+        } catch (Exception e) {
+            LOG.error("init cache all data error, exit.");
+            System.exit(1);
+        }
+
+        this.cache = initCache;
+        LOG.info("look up cache all mode finish to init all data");
     }
 
     /**

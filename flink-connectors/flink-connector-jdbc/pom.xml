@@ -39,6 +39,7 @@ under the License.
 		<postgres.version>42.2.10</postgres.version>
 		<oracle.version>19.3.0.0</oracle.version>
 		<otj-pg-embedded.version>0.13.4</otj-pg-embedded.version>
+		<quartz.version>2.3.2</quartz.version>
 	</properties>
 
 	<dependencies>
@@ -68,6 +69,19 @@ under the License.
 			<artifactId>ojdbc8</artifactId>
 			<version>${oracle.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<!-- quartz -->
+		<dependency>
+			<groupId>org.quartz-scheduler</groupId>
+			<artifactId>quartz</artifactId>
+			<version>${quartz.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.lwj.utils</groupId>
+			<artifactId>cron</artifactId>
+			<version>1.0</version>
 		</dependency>
 
 		<!-- Tests -->

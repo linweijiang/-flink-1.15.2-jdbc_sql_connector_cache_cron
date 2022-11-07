@@ -150,6 +150,12 @@ public class JdbcConnectorOptions {
                     .withDescription(
                             "Flag to cache all record, and init all record. false by default");
 
+    public static final ConfigOption<String> LOOKUP_CACHE_ALL_CRON =
+            ConfigOptions.key("lookup.cache.all.cron")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Flag to cache all record, and set update cron.");
+
     // write config options
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
