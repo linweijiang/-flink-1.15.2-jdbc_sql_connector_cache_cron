@@ -154,7 +154,6 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     }
 
     private void initCacheAll() {
-        LOG.info("look up cache all mode start to init all data");
         Cache<RowData, List<RowData>> initCache =
                 CacheBuilder.newBuilder()
                         .maximumSize(cacheMaxSize == -1 ? Integer.MAX_VALUE : cacheMaxSize)
@@ -178,14 +177,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                 initCache.put(key, dataList);
                 line++;
             }
-            LOG.info("init all cache size is: {} line", line);
+            LOG.info("init all cache, size is: {} line", line);
         } catch (Exception e) {
-            LOG.error("init cache all data error, exit.");
-            System.exit(1);
+            LOG.error("init cache all data error, please check.", e);
         }
-
         this.cache = initCache;
-        LOG.info("look up cache all mode finish to init all data");
     }
 
     /**
