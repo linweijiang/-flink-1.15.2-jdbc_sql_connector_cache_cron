@@ -29,6 +29,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.connector.jdbc.utils.CronUtils;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -72,6 +73,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private final boolean cacheMissingKey;
     private final boolean cacheAll;
     private final String cacheAllCron;
+    private long lookupCacheLine;
     private final JdbcDialect jdbcDialect;
     private final JdbcRowConverter jdbcRowConverter;
     private final JdbcRowConverter lookupKeyRowConverter;
@@ -151,9 +153,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         } catch (ClassNotFoundException cnfe) {
             throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
         }
+        context.getMetricGroup()
+                .gauge("Jdbc_Lookup_Cache_Size", (Gauge<Long>) this::getLookupCacheLine);
     }
 
-    private void initCacheAll() {
+    private synchronized void initCacheAll() {
         Cache<RowData, List<RowData>> initCache =
                 CacheBuilder.newBuilder()
                         .maximumSize(cacheMaxSize == -1 ? Integer.MAX_VALUE : cacheMaxSize)
@@ -178,6 +182,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                 line++;
             }
             LOG.info("init all cache, size is: {} line", line);
+            this.lookupCacheLine = line;
         } catch (Exception e) {
             LOG.error("init cache all data error, please check.", e);
         }
@@ -268,6 +273,10 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                 }
             }
         }
+    }
+
+    public long getLookupCacheLine() {
+        return lookupCacheLine;
     }
 
     private void establishConnectionAndStatement() throws SQLException, ClassNotFoundException {
